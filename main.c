@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <ctype.h>
 
 typedef unsigned char byte;
 typedef struct {
@@ -38,7 +39,7 @@ typedef struct{
 typedef struct{
     Image* image; // list of images indexed from 0 [A-Z] 
 } Font;
-
+int bottom;
 // Loads an image from the given `path`.
 // If loading fails, return false.
 bool image_load(Image* image, const char* path) {
@@ -82,25 +83,27 @@ void write_text(const int posX, const int posY, Image* font_img, Image* to_img){
         }
     }
 }
-void write(char* text, bool bottom, int pos, Font* font, Image* to){
+void write(char* text, bool b, int pos, Font* font, Image* to){
     int width = 0;
     const int font_spacing = 25;
     const int vertical_spacing = 20;
-    printf("l%d \n", strlen(text));
-    int movement = (to->canvas.width - (strlen(text) * font_spacing)) / 2;
     for(int i = 0 ; i < strlen(text); i ++){
         char c = text[i];
+        c = toupper(c);
         if(c == ' '){
             width += 15;
             continue;
         }
         Image* image = &font->image[c-65];
-        printf("Writing %c at pos: %d, %d\n", c, width+10, pos*(image -> canvas.height + vertical_spacing));
-        printf("Image: %d", image);
-        if(bottom){
-            write_text(width + 10 + movement, (to -> canvas.height - vertical_spacing - 25) - (pos*image->canvas.height), image, to);
+        //printf("Writing %c at pos: %d, %d\n", c, width+10, pos*(image -> canvas.height + vertical_spacing));
+        if(b){
+            if(bottom - 1 > pos){
+                write_text(width + 10, (to -> canvas.height - vertical_spacing - 25) - ((bottom-pos)*image->canvas.height), image, to);
+            }else{
+                write_text(width + 10, (to -> canvas.height - vertical_spacing - 25) - (pos*image->canvas.height), image, to);
+            }
         }else{
-            write_text(width + 10 + movement, pos*(image -> canvas.height + vertical_spacing) + 10, image, to);
+            write_text(width + 10, pos*(image -> canvas.height + vertical_spacing) + 10, image, to);
         }
         width += (image -> canvas.width);
     }
@@ -113,7 +116,7 @@ void image_free(Image* image) {
 bool load_fonts(Font* font, char* path){
     int starting_latter = 65; //Latter A 
     // /A.tga
-    font -> image = (Image*) malloc(sizeof(Image) * 26);
+    font -> image = (Image*) calloc(sizeof(Image), 26);
     int length = strlen(path);
     char* new_path = (char*) calloc(length + 7,1);
     strcat(new_path, path);
@@ -160,14 +163,25 @@ int main(int argc, char **argv){
         return 1;
     }
     Image image = {};
-    image_load(&image, "img1.tga");
-    //write_text(0, 0, &font->image[0], &image);
-    write("AHOJ", false, 0, font, &image);
-    write("JAK JE", false, 1, font, &image);
-
-    write("TEST", true, 0, font, &image);
-    write("AAATESTAAA", true, 1, font, &image);
-    save_image(&image, "out.tga");
+    image_load(&image, image_in);
+    char buffer[100] = {0};
+    fgets(buffer, sizeof(buffer), stdin);
+    printf("\n params: %s \n", buffer);
+    
+    int top = atoi(&buffer[0]);
+    bottom = atoi(&buffer[2]);
+    for(int i = 0; i < top; i ++){
+        fgets(buffer, sizeof(buffer), stdin);
+        printf("%s \n", buffer);
+        write(buffer, false, i, font, &image);
+    }
+    for(int i = 0; i < bottom; i ++){
+        fgets(buffer, sizeof(buffer), stdin);
+        printf("%s \n", buffer);
+        write(buffer, true, i, font, &image);
+    }
+    save_image(&image, image_out);
+    image_free(&image);
     free_fonts(font);
     
     return 0;
